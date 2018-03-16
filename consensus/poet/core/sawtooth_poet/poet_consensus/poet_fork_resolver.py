@@ -26,11 +26,12 @@ from sawtooth_poet_common.validator_registry_view.validator_registry_view \
     import ValidatorRegistryView
 
 from sawtooth_validator.journal.block_wrapper import BlockWrapper
+from sawtooth_validator.journal.block_wrapper import NULL_BLOCK_IDENTIFIER
+
 from sawtooth_validator.journal.consensus.consensus \
     import ForkResolverInterface
 
 LOGGER = logging.getLogger(__name__)
-
 
 class PoetForkResolver(ForkResolverInterface):
     # Provides the fork resolution interface for the BlockValidator to use
@@ -112,10 +113,13 @@ class PoetForkResolver(ForkResolverInterface):
         # If we ever get a new fork head that is not a PoET block, then bail
         # out.  This should never happen, but defensively protect against it.
         if new_fork_wait_certificate is None:
-            raise \
-                TypeError(
-                    'New fork head {} is not a PoET block'.format(
-                        new_fork_head.identifier[:8]))
+            # And if its NOT genesis block
+            if new_fork_head.previous_block_id != NULL_BLOCK_IDENTIFIER and \
+                new_fork_head.block_num != 0:
+                    raise \
+                        TypeError(
+                            'New fork head {} is not a PoET block'.format(
+                             new_fork_head.identifier[:8]))
 
         # Criterion #1: If the current fork head is not PoET, then check to see
         # if the new fork head is building on top of it.  That would be okay.
