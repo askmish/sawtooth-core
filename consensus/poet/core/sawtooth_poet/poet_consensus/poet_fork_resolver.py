@@ -76,6 +76,12 @@ class PoetForkResolver(ForkResolverInterface):
                 data_dir=self._data_dir,
                 validator_id=self._validator_id)
 
+    def is_genesis_block(self, cur_block):
+        if cur_block.previous_block_id == NULL_BLOCK_IDENTIFIER:
+            return True
+        else:
+            return False
+
     def compare_forks(self, cur_fork_head, new_fork_head):
         """Given the head of two forks, return which should be the fork that
         the validator chooses.  When this is called both forks consist of
@@ -113,9 +119,7 @@ class PoetForkResolver(ForkResolverInterface):
         # If we ever get a new fork head that is not a PoET block, then bail
         # out.  This should never happen, but defensively protect against it.
         if new_fork_wait_certificate is None:
-            # And if its NOT genesis block
-            if new_fork_head.previous_block_id != NULL_BLOCK_IDENTIFIER and \
-                new_fork_head.block_num != 0:
+            if not is_genesis_block(new_fork_head):
                     raise \
                         TypeError(
                             'New fork head {} is not a PoET block'.format(
