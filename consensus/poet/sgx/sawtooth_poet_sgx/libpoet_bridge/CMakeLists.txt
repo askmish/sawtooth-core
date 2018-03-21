@@ -19,11 +19,7 @@ PROJECT(libpoet-bridge C CXX)
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # Source Code
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-IF(MSVC)
-    SET(PLATFORM_DIR_NAME windows)
-ELSE()
-    SET(PLATFORM_DIR_NAME linux)
-ENDIF()
+SET(PLATFORM_DIR_NAME linux)
 
 SET(C11_SUPPORT ../../../common/c11_support)
 
@@ -34,21 +30,16 @@ SOURCE_GROUP("Source" FILES ${PROJECT_HEADERS} ${PROJECT_SOURCES})
 INCLUDE_DIRECTORIES(. ${C11_SUPPORT} ${C11_SUPPORT}/${PLATFORM_DIR_NAME})
 INCLUDE_DIRECTORIES(../libpoet_shared ../libpoet_shared/${PLATFORM_DIR_NAME})
 
-IF(MSVC)
-    SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Zi")
-    SET(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} /DEBUG /OPT:REF /OPT:ICF")
-ELSE()
-    # These compiler and linker flags for g++/gcc were derived from the make
-    # files provided with the SGX sample apps
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m64")
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-attributes")
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-    SET(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -m64")
-    SET(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -O2")
-    SET(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--no-undefined")
-ENDIF()
+# These compiler and linker flags for g++/gcc were derived from the make
+# files provided with the SGX sample apps
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m64")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-attributes")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+SET(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -m64")
+SET(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -O2")
+SET(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--no-undefined")
 
 SGX_EDGE_UNTRUSTED(${LIBPOET_ENCLAVE_EDL} PROJECT_EDGE_SOURCES)
 SOURCE_GROUP("Generated" FILES ${PROJECT_EDGE_SOURCES})
@@ -63,27 +54,20 @@ SET_RUNTIME(DYNAMIC)
 # CMake likes to prepend "lib" to project name when creating library...since we
 # already have lib in the project name, liblibpoet-bridge is stupid.  Stop CMake
 # from doing it.
-IF(NOT MSVC)
-    SET(CMAKE_SHARED_LIBRARY_PREFIX "")
-ENDIF()
+SET(CMAKE_SHARED_LIBRARY_PREFIX "")
 
 ADD_LIBRARY(${PROJECT_NAME} SHARED ${PROJECT_EDGE_SOURCES} ${PROJECT_HEADERS} ${PROJECT_SOURCES})
 
-# If we are using MSVC then it is fine to simply set the target link libraries.
-# However, if we are using Linux, then find the libraries to get the absolute
+# Since we are using Linux, find the libraries to get the absolute
 # path and add them that way and DO NOT add the linker path using
 # LINK_DIRECTORIES as it will add the -rpath option to the linker and this is
 # bad as when installing the SDK the version of libsgx_uae_service.so in the SDK
 # lib64 directory is different than the one in /usr/lib
-IF(MSVC)
-    TARGET_LINK_LIBRARIES( ${PROJECT_NAME} PRIVATE  ${SGX_LIBS_UNTRUSTED})
-ELSE()
-    FOREACH(lib ${SGX_LIBS_UNTRUSTED})
-        FIND_LIBRARY(ABS-${lib} NAMES ${lib} PATHS "$ENV{SGXSDKInstallPath}/lib64")
-        SET(ABSOLUTE_SGX_LIBS_UNTRUSTED ${ABSOLUTE_SGX_LIBS_UNTRUSTED} ${ABS-${lib}})
-    ENDFOREACH(lib)
-    TARGET_LINK_LIBRARIES( ${PROJECT_NAME} PRIVATE ${ABSOLUTE_SGX_LIBS_UNTRUSTED})
-ENDIF()
+FOREACH(lib ${SGX_LIBS_UNTRUSTED})
+    FIND_LIBRARY(ABS-${lib} NAMES ${lib} PATHS "$ENV{SGXSDKInstallPath}/lib64")
+    SET(ABSOLUTE_SGX_LIBS_UNTRUSTED ${ABSOLUTE_SGX_LIBS_UNTRUSTED} ${ABS-${lib}})
+ENDFOREACH(lib)
+TARGET_LINK_LIBRARIES( ${PROJECT_NAME} PRIVATE ${ABSOLUTE_SGX_LIBS_UNTRUSTED})
 
 
 ADD_CUSTOM_COMMAND(

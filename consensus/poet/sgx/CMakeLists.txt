@@ -35,15 +35,8 @@ SET(DEPS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/deps")
 # SGX -- should move to findsgx 
 OPTION(SGX_USE_SIMULATOR "Use the sgx simulator" FALSE)
 
-IF(MSVC)
-    SET(SGX_EDGER "$ENV{SGXSDKInstallPath}bin/win32/Release/sgx_edger8r.exe")
-    SET(SGX_SIGN "$ENV{SGXSDKInstallPath}bin/win32/release/sgx_sign.exe")
-    SET(SGX_LIB_DIRS_DEBUG "$ENV{SGXSDKInstallPath}bin/x64/Debug")
-    SET(SGX_LIB_DIRS_RELEASE "$ENV{SGXSDKInstallPath}bin/x64/Release")
-ELSE()
-    SET(SGX_EDGER "$ENV{SGXSDKInstallPath}bin/x64/sgx_edger8r")
-    SET(SGX_SIGN "$ENV{SGXSDKInstallPath}bin/x64/sgx_sign")
-ENDIF()
+SET(SGX_EDGER "$ENV{SGXSDKInstallPath}bin/x64/sgx_edger8r")
+SET(SGX_SIGN "$ENV{SGXSDKInstallPath}bin/x64/sgx_sign")
 
 SET(SGX_INCLUDE "$ENV{SGXSDKInstallPath}include")
 SET(SGX_ENCLAVE_INCLUDE "$ENV{SGXSDKInstallPath}include"
@@ -53,11 +46,7 @@ SET(SGX_ENCLAVE_INCLUDE "$ENV{SGXSDKInstallPath}include"
 SET(SGX_LIBS_TRUSTED_NAMES sgx_tstdc sgx_tstdcxx sgx_tkey_exchange sgx_tcrypto)
 SET(SGX_LIBS_UNTRUSTED_NAMES sgx_ukey_exchange)
 
-IF(MSVC)
-    SET(SGX_LIBS_UNTRUSTED_NAMES sgx_ukey_exchangemt ${SGX_LIBS_UNTRUSTED_NAMES})
-ELSE()
-    SET(SGX_LIBS_UNTRUSTED_NAMES ${SGX_LIBS_UNTRUSTED_NAMES} pthread )
-ENDIF()
+SET(SGX_LIBS_UNTRUSTED_NAMES ${SGX_LIBS_UNTRUSTED_NAMES} pthread )
 
 IF(${SGX_USE_SIMULATOR})
     ADD_DEFINITIONS(-D SGX_SIMULATOR)
@@ -69,11 +58,7 @@ ELSE()
 ENDIF()
 
 FOREACH(lib ${SGX_LIBS_TRUSTED_NAMES} ${SGX_LIBS_UNTRUSTED_NAMES})
-    IF(MSVC)
-	    SET(${lib} optimized ${SGX_LIB_DIRS_RELEASE}/${lib}${CMAKE_STATIC_LIBRARY_SUFFIX} debug ${SGX_LIB_DIRS_DEBUG}/${lib}${CMAKE_STATIC_LIBRARY_SUFFIX})
-    ELSE()
-        SET(${lib} ${lib})
-    ENDIF()
+    SET(${lib} ${lib})
 ENDFOREACH(lib)
 
 FOREACH(lib ${SGX_LIBS_TRUSTED_NAMES})
@@ -126,28 +111,8 @@ ENDFUNCTION()
 
 
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-IF( WIN32 )
-	MACRO( SET_RUNTIME type )
-		if(${type} STREQUAL "DYNAMIC")
-			SET(RTS "/MT")
-			SET(RTD "/MD")
-		ELSEIF(${type} STREQUAL "STATIC")
-			SET(RTS "/MD")
-			SET(RTD "/MT")
-		ELSE()
-			MESSAGE(SEND_ERROR  "Unknown runtime ${type}")
-		ENDIF()
-		FOREACH(bt ${CMAKE_CONFIGURATION_TYPES})
-			STRING(TOUPPER "CMAKE_C_FLAGS_${bt}" variable)
-			STRING(REGEX REPLACE ${RTS} ${RTD} ${variable} "${${variable}}")
-			STRING(TOUPPER "CMAKE_CXX_FLAGS_${bt}" variable)
-			STRING(REGEX REPLACE ${RTS} ${RTD} ${variable} "${${variable}}")		
-		ENDFOREACH()		
-	ENDMACRO()	
-ELSE()
-	MACRO( SET_RUNTIME type )
-	ENDMACRO()	
-ENDIF()
+MACRO( SET_RUNTIME type )
+ENDMACRO()	
 
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 

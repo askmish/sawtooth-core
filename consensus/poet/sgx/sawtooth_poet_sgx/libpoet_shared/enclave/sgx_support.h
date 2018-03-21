@@ -16,11 +16,4 @@
 */
 
 #pragma once
-
-// As an enclave, we will fall back on whatever SGX SDK support is needed based
-// upon how we are compiled
-#ifdef _MSC_VER
-    #include "windows/sgx_support.h"
-#else
-    #include "linux/sgx_support.h"
-#endif // #ifdef _MSC_VER
+#include "linux/sgx_support.h"

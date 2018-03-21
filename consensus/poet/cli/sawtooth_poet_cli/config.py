@@ -18,17 +18,12 @@ import sys
 import toml
 
 
-def _select_dir(sawtooth_home_dir, windows_dir, default_dir):
+def _select_dir(sawtooth_home_dir, default_dir):
     """Returns the directory value, selected using the SAWTOOTH_HOME
     environment variable (if set) or OS defaults.
     """
     if 'SAWTOOTH_HOME' in os.environ:
         return os.path.join(os.environ['SAWTOOTH_HOME'], sawtooth_home_dir)
-
-    if os.name == 'nt':
-        base_dir = \
-            os.path.dirname(os.path.dirname(os.path.abspath(sys.argv[0])))
-        return os.path.join(base_dir, windows_dir)
 
     return default_dir
 
@@ -37,12 +32,11 @@ def get_config_dir():
     """Returns the sawtooth configuration directory based on the
     SAWTOOTH_HOME environment variable (if set) or OS defaults.
     """
-    return _select_dir('etc', 'conf', '/etc/sawtooth')
+    return _select_dir('etc', '/etc/sawtooth')
 
 
 def _get_dir(toml_config_setting,
              sawtooth_home_dir,
-             windows_dir,
              default_dir):
     """Determines the directory path based on configuration.
 
@@ -52,8 +46,6 @@ def _get_dir(toml_config_setting,
         sawtooth_home_dir (str): The directory under the SAWTOOTH_HOME
             environment variable.  For example, for 'data' if the data
             directory is $SAWTOOTH_HOME/data.
-        windows_dir (str): The windows path relative to the computed base
-            directory.
         default_dir (str): The default path on Linux.
 
     Returns:
@@ -67,7 +59,7 @@ def _get_dir(toml_config_setting,
         if toml_config_setting in toml_config:
             return toml_config[toml_config_setting]
 
-    return _select_dir(sawtooth_home_dir, windows_dir, default_dir)
+    return _select_dir(sawtooth_home_dir, default_dir)
 
 
 def get_data_dir():
@@ -75,7 +67,6 @@ def get_data_dir():
     return _get_dir(
         toml_config_setting='data_dir',
         sawtooth_home_dir='data',
-        windows_dir='data',
         default_dir='/var/lib/sawtooth')
 
 
@@ -84,5 +75,4 @@ def get_key_dir():
     return _get_dir(
         toml_config_setting='key_dir',
         sawtooth_home_dir='keys',
-        windows_dir=os.path.join('conf', 'keys'),
         default_dir='/etc/sawtooth/keys')

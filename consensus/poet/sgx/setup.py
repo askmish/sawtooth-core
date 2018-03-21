@@ -25,29 +25,13 @@ from shutil import copyfile
 
 script_dir = os.path.dirname(os.path.realpath(__file__))
 
-
-if os.name == 'nt':
-    platform_dir = 'windows'
-    package_data = []
-
-    ext_deps = ['deps/bin/libpoet-bridge.dll',
-                'deps/bin/libpoet-enclave.signed.dll',
-                'deps/bin/msvcp110.dll',
-                'deps/bin/msvcr110.dll']
-    for f in ext_deps:
-        package_data.append(os.path.basename(f))
-    extra_compile_args = ['/EHsc']
-    libraries = ['json-c', 'cryptopp-static', 'libpoet-bridge']
-    include_dirs = ['deps/include']
-
-else:
-    platform_dir = 'linux'
-    extra_compile_args = ['-std=c++11']
-    libraries = ['json-c', 'crypto++', 'poet-bridge']
-    ext_deps = ['deps/bin/libpoet-bridge.so',
-                'deps/bin/libpoet-enclave.signed.so']
-    package_data = []
-    include_dirs = []
+platform_dir = 'linux'
+extra_compile_args = ['-std=c++11']
+libraries = ['json-c', 'crypto++', 'poet-bridge']
+ext_deps = ['deps/bin/libpoet-bridge.so',
+	'deps/bin/libpoet-enclave.signed.so']
+package_data = []
+include_dirs = []
 
 include_dirs += ['sawtooth_poet_sgx/poet_enclave_sgx',
                  'sawtooth_poet_sgx/poet_enclave_sgx/{}'.format(platform_dir),
@@ -80,17 +64,11 @@ class Build(build_module.build):
             os.mkdir("build")
         os.chdir("build")
 
-        if os.name == 'nt':
-            args = ["-G", "Visual Studio 11 2012 Win64"]
-        else:
-            args = ["-G", "Unix Makefiles"]
+        args = ["-G", "Unix Makefiles"]
 
         subprocess.call(["cmake", ".."] + args)
 
-        if os.name == 'nt':
-            args = ["--config", "Release"]
-        else:
-            args = []
+        args = []
 
         subprocess.call(["cmake", "--build", "."] + args)
 
@@ -106,10 +84,7 @@ class Build(build_module.build):
         build_module.build.run(self)
 
 
-if os.name == 'nt':
-    conf_dir = "C:\\Program Files (x86)\\Intel\\sawtooth\\conf"
-else:
-    conf_dir = "/etc/sawtooth"
+conf_dir = "/etc/sawtooth"
 
 setup(name='sawtooth-poet-sgx',
       version=subprocess.check_output(
