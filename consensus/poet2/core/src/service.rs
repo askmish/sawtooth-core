@@ -18,22 +18,41 @@
 use sawtooth_sdk::consensus::{engine::*,service::Service};
 use std::thread::sleep;
 use std::time;
+use std::time::Instant;
 
 use rand;
 use rand::Rng;
-use num::bigint::{BigInt};
 
 const DEFAULT_WAIT_TIME: u64 = 0;
 
 pub struct Poet2Service {
     service: Box<Service>,
+    init_wall_clock: Instant,
+    chain_clock: u64,
 }
 
 impl Poet2Service {
-       pub fn new(service: Box<Service>) -> Self {
-        Poet2Service { service }
+       pub fn new(service_: Box<Service>) -> Self {
+        let now = Instant::now();
+        Poet2Service { 
+        	service : service_, 
+        	init_wall_clock : now,
+        	chain_clock : 0,
+        }
     }
-
+	
+	pub fn get_chain_clock(&mut self) -> u64 {
+		self.chain_clock
+	}
+	
+	pub fn get_wall_clock(&mut self) -> u64 {
+		self.init_wall_clock.elapsed().as_secs()
+	}
+	
+	pub fn set_chain_clock(&mut self, new_cc : u64) {
+		self.chain_clock = new_cc;
+	}
+	
     pub fn get_chain_head(&mut self) -> Block {
         debug!("Getting chain head");
         self.service
@@ -182,14 +201,6 @@ impl Poet2Service {
 
         time::Duration::from_secs(wait_time)
     }
-    
-    pub fn get_wall_clock(&mut self) -> BigInt {
-       BigInt::parse_bytes(b"0", 256).unwrap()
-    }
-    
-    pub fn get_chain_clock(&mut self) -> BigInt {
-       BigInt::parse_bytes(b"0", 256).unwrap()
-    }
 }
 
 fn create_consensus(summary: &[u8]) -> Vec<u8> {
@@ -211,6 +222,72 @@ mod tests {
 	use sawtooth_sdk::messages::validator::{Message, Message_MessageType};
 	use sawtooth_sdk::messaging::zmq_stream::ZmqMessageConnection;
 	use sawtooth_sdk::messaging::stream::MessageConnection;
+	fn generate_correlation_id() -> String {
+	    const LENGTH: usize = 16;
+	    rand::thread_rng().gen_ascii_chars().take(LENGTH).collect()
+	}
+	fn send_req_rep<I: protobuf::Message, O: protobuf::Message>(
+        connection_id: &[u8],
+        socket: &zmq::Socket,
+        request: I,
+        request_type: Message_MessageType,
+        response_type: Message_MessageType,
+    ) -> O {
+        let correlation_id = generate_correlation_id();
+        let mut msg = Message::new();
+        msg.set_message_type(request_type);
+        msg.set_correlation_id(correlation_id.clone());
+        msg.set_content(request.write_to_bytes().unwrap());
+        socket
+            .send_multipart(&[connection_id, &msg.write_to_bytes().unwrap()], 0)
+            .unwrap();
+        let msg: Message =
+            protobuf::parse_from_bytes(&socket.recv_multipart(0).unwrap()[1]).unwrap();
+        assert!(msg.get_message_type() == response_type);
+        protobuf::parse_from_bytes(&msg.get_content()).unwrap()
+    }
+
+    fn recv_rep<I: protobuf::Message, O: protobuf::Message>(
+        socket: &zmq::Socket,
+        request_type: Message_MessageType,
+        response: I,
+        response_type: Message_MessageType,
+    ) -> (Vec<u8>, O) {
+        let mut parts = socket.recv_multipart(0).unwrap();
+        assert!(parts.len() == 2);
+
+        let mut msg: Message = protobuf::parse_from_bytes(&parts.pop().unwrap()).unwrap();
+        let connection_id = parts.pop().unwrap();
+        assert!(msg.get_message_type() == request_type);
+        let request: O = protobuf::parse_from_bytes(&msg.get_content()).unwrap();
+
+        let correlation_id = msg.take_correlation_id();
+        let mut msg = Message::new();
+        msg.set_message_type(response_type);
+        msg.set_correlation_id(correlation_id);
+        msg.set_content(response.write_to_bytes().unwrap());
+        socket
+            .send_multipart(&[&connection_id, &msg.write_to_bytes().unwrap()], 0)
+            .unwrap();
+
+        (connection_id, request)
+    }
+
+	macro_rules! service_test {
+        (
+            $socket:expr,
+            $rep:expr,
+            $status:expr,
+            $rep_msg_type:expr,
+            $req_type:ty,
+            $req_msg_type:expr
+        ) => {
+            let mut response = $rep;
+            response.set_status($status);
+            let (_, _): (_, $req_type) =
+                recv_rep($socket, $req_msg_type, response, $rep_msg_type);
+        };
+    }
 
     #[test]
     fn test_service() {
@@ -221,6 +298,7 @@ mod tests {
             .expect("Failed to bind socket");
         let addr = socket.get_last_endpoint().unwrap().unwrap();
 
+        let svc_thread = ::std::thread::spawn(move || {
             let connection = ZmqMessageConnection::new(&addr);
             let (sender, _) = connection.create();
             let mut zmq_svc = ZmqService::new(
@@ -229,11 +307,12 @@ mod tests {
                 "mock".into(),
                 "0".into(),
             );
+            
                 
             let mut svc = Poet2Service::new( Box::new(zmq_svc) );
             
             svc.initialize_block(Some(Default::default()));
-            svc.finalize_block();
+            /*svc.finalize_block();
             svc.cancel_block();
 			svc.get_block(Default::default());
             svc.get_chain_head();
@@ -243,8 +322,17 @@ mod tests {
             svc.fail_block(Default::default());
 			svc.broadcast(Default::default());
 			assert_eq!(2, 2);
-            
-			assert_eq!(2, 3);
+            */
+			//assert_eq!(2, 3);
+		});
+		service_test!(
+            &socket,
+            ConsensusInitializeBlockResponse::new(),
+            ConsensusInitializeBlockResponse_Status::OK,
+            Message_MessageType::CONSENSUS_INITIALIZE_BLOCK_RESPONSE,
+            ConsensusInitializeBlockRequest,
+            Message_MessageType::CONSENSUS_INITIALIZE_BLOCK_REQUEST
+        );
     }
     
     #[test]
